@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GPS Train">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>GPS Train</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Mise en page : une colonne pour iPhone — état de la connexion, grandes valeurs GPS, enregistrement, journal */
+:root{
+  --bg:#edf0f4; --surface:#ffffff; --surface2:#f4f6f9; --ink:#14213d; --muted:#56637a; --line:#d3dae4;
+  --accent:#1f4fd8; --accent-ink:#ffffff; --amber:#c27a00; --amber-bg:#fff1d0; --ok:#1a8a4a; --ok-bg:#d9f3e4; --bad:#c43b3b; --bad-bg:#fbe0e0;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif; --f-body:"Barlow",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:light dark; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0b111d; --surface:#141d2f; --surface2:#0f1727; --ink:#e8edf6; --muted:#9aa8c0; --line:#26344d;
+  --accent:#6d8fff; --accent-ink:#0a1020; --amber:#f0b44a; --amber-bg:#3a2c0d; --ok:#4fd48a; --ok-bg:#12331f; --bad:#ff7b7b; --bad-bg:#3a1717}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:400 17px/1.45 var(--f-body);padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1,h2{font-family:var(--f-display);font-weight:700;margin:0;letter-spacing:.01em}
+h1{font-size:2.3rem;line-height:1}
+h2{font-size:1.35rem}
+.sub{color:var(--muted);font-size:.95rem;margin:4px 0 0}
+button,input,select{font-family:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{font:600 1rem var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:12px 16px;border-radius:10px;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.rec{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.bar{display:flex;gap:10px;flex-wrap:wrap}.grow{flex:1 1 140px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:center;gap:12px}
+.led{width:16px;height:16px;border-radius:50%;background:var(--muted);flex:none}
+.led.ok{background:var(--ok);box-shadow:0 0 0 5px var(--ok-bg)}
+.led.wait{background:var(--amber);box-shadow:0 0 0 5px var(--amber-bg)}
+.led.bad{background:var(--bad);box-shadow:0 0 0 5px var(--bad-bg)}
+.status b{font:700 1.3rem/1.1 var(--f-display);letter-spacing:.02em;display:block}
+.status span{font-size:.92rem;color:var(--muted);display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cell{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.cell.wide{grid-column:1/-1}
+.cell label{display:block;font:600 .7rem var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.cell output{display:block;font:500 1.55rem/1.25 var(--f-mono);overflow-wrap:anywhere}
+.cell small{font:400 .85rem var(--f-body);color:var(--muted)}
+.cell output.big{font-size:2.2rem}
+.msg{border-radius:9px;padding:10px 12px;font-size:.92rem}
+.msg.warn{background:var(--amber-bg);color:var(--amber)}.msg.err{background:var(--bad-bg);color:var(--bad)}
+.train{display:flex;flex-direction:column;gap:2px;font-size:.95rem}
+.train b{font:700 1.2rem var(--f-display);letter-spacing:.02em}
+table{width:100%;border-collapse:collapse;font:500 .78rem var(--f-mono)}
+th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:600 .66rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+th:first-child,td:first-child{text-align:left}
+.scroll{overflow-x:auto}
+details summary{cursor:pointer;font:600 .95rem var(--f-body);color:var(--muted)}
+.fld{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.fld label{font:600 .72rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input,select{font:400 16px var(--f-body);color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;width:100%;min-height:44px}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:.93rem;max-width:90%;z-index:5}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <div>
+    <h1>GPS Train</h1>
+    <p class="sub">Position et vitesse du train, lues sur le Wi-Fi de bord SNCF</p>
+  </div>
+
+  <div class="card">
+    <div class="status"><span class="led" id="led"></span><div><b id="st-t">Déconnecté</b><span id="st-s">Connectez-vous au Wi-Fi du train, puis appuyez sur Démarrer.</span></div></div>
+    <div class="bar">
+      <button class="btn primary grow" id="go">Démarrer</button>
+      <button class="btn grow" id="sim">Mode simulation</button>
+    </div>
+    <div class="msg err" id="err" hidden></div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="cell wide"><label>Vitesse</label><output class="big" id="v-spd">—</output></div>
+      <div class="cell"><label>Latitude</label><output id="v-lat">—</output></div>
+      <div class="cell"><label>Longitude</label><output id="v-lon">—</output></div>
+      <div class="cell"><label>Cap</label><output id="v-hdg">—</output></div>
+      <div class="cell"><label>Altitude</label><output id="v-alt">—</output></div>
+      <div class="cell"><label>Fix GPS</label><output id="v-fix">—</output></div>
+      <div class="cell"><label>Dernière mesure</label><output id="v-age">—</output></div>
+    </div>
+    <div class="train" id="train" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>Enregistrement</h2>
+    <div class="bar">
+      <button class="btn grow" id="rec">Démarrer l'enregistrement</button>
+    </div>
+    <p class="hint" id="rec-s">Aucun point enregistré.</p>
+    <div class="bar">
+      <button class="btn grow" id="x-csv">Exporter CSV</button>
+      <button class="btn grow" id="x-gpx">Exporter GPX</button>
+      <button class="btn grow" id="x-clr">Effacer</button>
+    </div>
+    <div class="scroll"><table id="log"><thead><tr><th>Heure</th><th>Lat</th><th>Lon</th><th>km/h</th><th>Cap</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <details class="card">
+    <summary>Réglages</summary>
+    <div class="fld"><label for="base">Adresse de l'API</label><input id="base" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="fld"><label for="every">Fréquence de lecture</label><select id="every"><option value="1000">Chaque seconde</option><option value="2000">Toutes les 2 secondes</option><option value="5000">Toutes les 5 secondes</option></select></div>
+    <p class="hint" style="margin-top:10px">L'application lit <span style="font-family:var(--f-mono)">/router/api/train/gps</span> et <span style="font-family:var(--f-mono)">/router/api/train/details</span>. Elle ne fonctionne que connecté au Wi-Fi du train, portail validé. Le mode simulation permet de l'essayer ailleurs.</p>
+  </details>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const KEY='gps-train-v1', PKEY='gps-train-pts-v1', MAXPTS=60000;
+const cfg={base:'https://wifi.sncf',every:1000};
+let running=false, simMode=false, timer=0, busy=false, recOn=false, pts=[], lastTs=null, lastSeen=0, errN=0, detTimer=0, wake=null, simT0=0;
+
+try{Object.assign(cfg,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+try{pts=JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){pts=[]}
+$('base').value=cfg.base; $('every').value=String(cfg.every);
+$('base').onchange=()=>{cfg.base=$('base').value.trim().replace(/\/+$/,'')||'https://wifi.sncf';$('base').value=cfg.base;save()};
+$('every').onchange=()=>{cfg.every=+$('every').value;save();if(running){clearInterval(timer);timer=setInterval(tick,cfg.every)}};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}}
+function savePts(){try{localStorage.setItem(PKEY,JSON.stringify(pts))}catch(e){}}
+let tt=0;function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3000)}
+
+/* ---------- Lecture de l'API ---------- */
+async function getJSON(path){
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),4000);
+  try{
+    const r=await fetch(cfg.base+path,{cache:'no-store',signal:ctl.signal});
+    if(!r.ok)throw {kind:'http',status:r.status};
+    return await r.json();
+  }catch(e){ if(e&&e.kind)throw e; throw {kind:(e&&e.name==='AbortError')?'timeout':(e instanceof SyntaxError?'json':'net')} }
+  finally{clearTimeout(to)}
+}
+const num=v=>(v===null||v===undefined||v==='')?null:(isFinite(+v)?+v:null);
+function parseGps(j){
+  if(!j||j.success===false)return null;
+  const lat=num(j.latitude),lon=num(j.longitude);
+  if(lat===null||lon===null)return null;
+  let ts=num(j.timestamp); if(ts===null)ts=Date.now()/1000; if(ts>1e12)ts/=1000;
+  const ms=num(j.speed);
+  return {lat,lon,alt:num(j.altitude),kmh:ms===null?null:ms*3.6,hdg:num(j.heading),fix:j.fix??null,ts};
+}
+
+/* ---------- Simulation (Paris-Lyon, sans réseau) ---------- */
+function simGps(){
+  const A=[48.8443,2.3744],B=[45.7606,4.8603],v=83.9;
+  const R=6371000,toR=Math.PI/180;
+  const dist=Math.hypot((B[0]-A[0])*111000,(B[1]-A[1])*79000);
+  const f=Math.min(1,((Date.now()-simT0)/1000*v)/dist);
+  const dLat=B[0]-A[0],dLon=(B[1]-A[1])*Math.cos(47*toR);
+  const hdg=(Math.atan2(dLon,dLat)/toR+360)%360;
+  return {success:true,fix:8,timestamp:Math.floor(Date.now()/1000),latitude:A[0]+dLat*f,longitude:A[1]+(B[1]-A[1])*f,altitude:180+10*Math.sin(Date.now()/9000),speed:v+Math.sin(Date.now()/4000)*1.5,heading:hdg};
+}
+const SIM_DETAILS={number:'6601',carrier:'INOUI',stops:[{label:'Paris Gare de Lyon',theoricDate:'2026-01-01T08:00:00Z'},{label:'Lyon Part-Dieu',theoricDate:new Date(Date.now()+3600e3).toISOString()}]};
+
+/* ---------- Boucle ---------- */
+function setStatus(kind,t,s){$('led').className='led '+kind;$('st-t').textContent=t;$('st-s').textContent=s}
+function showErr(m){const e=$('err');e.hidden=!m;e.textContent=m||''}
+const ERRTXT={
+  net:"Impossible de joindre l'API du train. Vérifiez que vous êtes sur le Wi-Fi du train et que le portail est validé dans le navigateur. Si le Wi-Fi est bien connecté, le navigateur bloque peut-être la lecture (règle CORS) : utilisez alors le script PC fourni.",
+  timeout:"L'API ne répond pas (délai dépassé). Le réseau du train est peut-être saturé ou la connexion n'est pas validée.",
+  http:s=>`L'API a répondu avec une erreur (${s}).`,
+  json:"La réponse de l'API n'a pas le format attendu."
+};
+async function tick(){
+  if(busy)return; busy=true;
+  try{
+    const j=simMode?simGps():await getJSON('/router/api/train/gps');
+    errN=0; showErr('');
+    const g=parseGps(j);
+    if(!g){ setStatus('wait','En attente de position',"L'API répond mais ne donne pas encore de coordonnées (train à quai ou GPS en cours d'acquisition)."); busy=false; return }
+    lastSeen=Date.now(); render(g);
+    setStatus('ok',simMode?'Simulation en cours':'Connecté',simMode?'Données fictives Paris → Lyon.':`Position reçue de ${cfg.base.replace(/^https?:\/\//,'')}`);
+    if(recOn&&g.ts!==lastTs)addPoint(g);
+    lastTs=g.ts;
+  }catch(e){
+    errN++;
+    setStatus('bad','Pas de données',errN>1?`${errN} échecs de suite.`:'Nouvelle tentative…');
+    showErr(typeof ERRTXT[e.kind]==='function'?ERRTXT[e.kind](e.status):ERRTXT[e.kind]||ERRTXT.net);
+  }
+  busy=false;
+}
+function render(g){
+  $('v-spd').textContent=g.kmh===null?'—':Math.round(g.kmh)+' km/h';
+  $('v-lat').textContent=g.lat.toFixed(6)+'°';
+  $('v-lon').textContent=g.lon.toFixed(6)+'°';
+  $('v-hdg').textContent=g.hdg===null?'—':Math.round(g.hdg)+'°';
+  $('v-alt').textContent=g.alt===null?'—':Math.round(g.alt)+' m';
+  $('v-fix').textContent=g.fix===null?'—':String(g.fix);
+}
+setInterval(()=>{ // âge de la dernière mesure
+  if(!running||!lastSeen){$('v-age').textContent='—';return}
+  const s=Math.round((Date.now()-lastSeen)/1000);
+  $('v-age').textContent=s<=1?'à l\'instant':`il y a ${s} s`;
+},500);
+
+async function loadDetails(){
+  try{
+    const d=simMode?SIM_DETAILS:await getJSON('/router/api/train/details');
+    if(!d||!d.number){$('train').hidden=true;return}
+    const stops=Array.isArray(d.stops)?d.stops:[]; const now=Date.now();
+    const next=stops.find(s=>{const t=Date.parse(s.realDate||s.theoricDate);return t>now});
+    const end=stops.length?stops[stops.length-1].label:'';
+    const hh=s=>{const t=new Date(s.realDate||s.theoricDate);return pad(t.getHours())+':'+pad(t.getMinutes())};
+    $('train').hidden=false;
+    $('train').innerHTML=`<b>Train ${esc(d.number)}${d.carrier?' · '+esc(d.carrier):''}</b>${end?`<span>Destination : ${esc(end)}</span>`:''}${next?`<span>Prochain arrêt : ${esc(next.label)}, ${hh(next)}${next.isDelayed&&next.delay?` (retard ${esc(next.delay)} min)`:''}</span>`:''}`;
+  }catch(e){}
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function start(sim){
+  if(running)stop();
+  simMode=sim; running=true; errN=0; lastSeen=0; simT0=Date.now();
+  $('go').textContent='Arrêter'; $('go').classList.remove('primary'); $('sim').disabled=true;
+  setStatus('wait','Connexion…','Lecture de l\'API en cours.');
+  tick(); timer=setInterval(tick,cfg.every);
+  loadDetails(); detTimer=setInterval(loadDetails,30000);
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{})}catch(e){}
+}
+function stop(){
+  running=false; clearInterval(timer); clearInterval(detTimer);
+  $('go').textContent='Démarrer'; $('go').classList.add('primary'); $('sim').disabled=false;
+  setStatus('','Déconnecté','Connectez-vous au Wi-Fi du train, puis appuyez sur Démarrer.'); showErr('');
+  try{wake&&wake.release();wake=null}catch(e){}
+  if(recOn)toggleRec();
+}
+$('go').onclick=()=>running?stop():start(false);
+$('sim').onclick=()=>start(true);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&running&&!wake){try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{})}catch(e){}} });
+
+/* ---------- Enregistrement ---------- */
+function addPoint(g){
+  pts.push([g.ts,g.lat,g.lon,g.alt,g.kmh===null?null:+g.kmh.toFixed(1),g.hdg,g.fix]);
+  if(pts.length>MAXPTS)pts.splice(0,pts.length-MAXPTS);
+  if(pts.length%10===0)savePts();
+  renderLog();
+}
+function toggleRec(){
+  recOn=!recOn; $('rec').textContent=recOn?"Arrêter l'enregistrement":"Démarrer l'enregistrement"; $('rec').classList.toggle('rec',recOn);
+  if(!recOn)savePts(); renderLog();
+}
+function renderLog(){
+  $('rec-s').textContent=pts.length?`${pts.length} point(s) enregistré(s)${recOn?' — enregistrement en cours':''}.`:(recOn?'Enregistrement en cours, en attente de position.':'Aucun point enregistré.');
+  $('log').tBodies[0].innerHTML=pts.slice(-8).reverse().map(p=>{const d=new Date(p[0]*1000);return `<tr><td>${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}</td><td>${p[1].toFixed(5)}</td><td>${p[2].toFixed(5)}</td><td>${p[4]===null?'—':Math.round(p[4])}</td><td>${p[5]===null?'—':Math.round(p[5])}</td></tr>`}).join('');
+  ['x-csv','x-gpx','x-clr'].forEach(i=>$(i).disabled=!pts.length);
+}
+$('rec').onclick=toggleRec;
+$('x-clr').onclick=()=>{ if($('x-clr').dataset.arm==='1'){pts=[];savePts();renderLog();$('x-clr').textContent='Effacer';$('x-clr').dataset.arm='';toast('Points effacés')}else{$('x-clr').dataset.arm='1';$('x-clr').textContent='Confirmer l\'effacement';setTimeout(()=>{$('x-clr').dataset.arm='';$('x-clr').textContent='Effacer'},4000)} };
+function stamp(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+const fr=v=>v===null||v===undefined?'':String(v).replace('.',',');
+$('x-csv').onclick=()=>{
+  const head=['horodatage_utc','latitude','longitude','altitude_m','vitesse_kmh','cap_deg','fix'];
+  const rows=pts.map(p=>new Date(p[0]*1000).toISOString()+';'+[p[1].toFixed(7),p[2].toFixed(7),p[3],p[4],p[5],p[6]].map(fr).join(';'));
+  saveBlob(new Blob(['﻿'+head.join(';')+'\r\n'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}),`gps_train_${stamp()}.csv`);
+};
+$('x-gpx').onclick=()=>{
+  const trk=pts.map(p=>`<trkpt lat="${p[1].toFixed(7)}" lon="${p[2].toFixed(7)}">${p[3]!==null?`<ele>${p[3]}</ele>`:''}<time>${new Date(p[0]*1000).toISOString()}</time></trkpt>`).join('\n');
+  saveBlob(new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GPS Train" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Trajet ${stamp()}</name><trkseg>\n${trk}\n</trkseg></trk></gpx>`],{type:'application/gpx+xml'}),`gps_train_${stamp()}.gpx`);
+};
+renderLog();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
